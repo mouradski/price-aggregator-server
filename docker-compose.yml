@@ -1,0 +1,17 @@
+services:
+  aggregator:
+    build:
+      context: .
+    image: ftso-prices
+    container_name: ftso-prices
+    # Configuration (ASSETS, EXCHANGE whitelist, MESSAGE_TIMEOUT, ...) is read
+    # from the existing project .env at the repository root.
+    env_file: .env
+    environment:
+      # Pinned so it matches the published port mapping below.
+      AGGREGATOR_PORT: "8090"
+    ports:
+      # Ticker stream is served at ws://<host>:8090/ticker
+      - "8090:8090"
+    restart: unless-stopped
+    stop_grace_period: 10s

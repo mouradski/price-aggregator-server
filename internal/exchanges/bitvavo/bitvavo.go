@@ -1,0 +1,48 @@
+package bitvavo
+
+import (
+	"time"
+
+	"ftso-prices/internal/client"
+	"ftso-prices/internal/jsonutil"
+	"ftso-prices/internal/model"
+	"ftso-prices/internal/symbol"
+)
+
+const url = "https://api.bitvavo.com/v2/ticker/24h"
+
+type Client struct{}
+
+func New() *Client { return &Client{} }
+
+func (c *Client) Name() string { return "bitvavo" }
+
+func (c *Client) Interval() time.Duration { return 2 * time.Second }
+
+type ticker struct {
+	Market      string         `json:"market"`
+	Last        jsonutil.Float `json:"last"`
+	Ask         jsonutil.Float `json:"ask"`
+	Bid         jsonutil.Float `json:"bid"`
+	VolumeQuote jsonutil.Float `json:"volumeQuote"`
+}
+
+func (c *Client) Poll(ctx *client.Context, push func(model.Ticker)) error {
+	var tickers []ticker
+	if err := client.GetJSON(url, &tickers); err != nil {
+		return err
+	}
+	ts := client.Now()
+	for _, t := range tickers {
+		base, quote := symbol.GetPair(t.Market)
+		if !ctx.IsAsset(base) || !ctx.IsQuote(quote) {
+			continue
+		}
+		vol := t.VolumeQuote.V()
+		push(model.Ticker{Source: model.SourceREST, Exchange: c.Name(), Base: base, Quote: quote,
+			LastPrice: t.Last.V(), Timestamp: ts, H24Volume: vol})
+		push(model.Ticker{Source: model.SourceREST, Exchange: c.Name() + "-ask", Base: base, Quote: quote,
+			LastPrice: (t.Ask.V() + t.Bid.V()) / 2, Timestamp: ts, H24Volume: vol})
+	}
+	return nil
+}

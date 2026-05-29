@@ -1,0 +1,52 @@
+package kucoin
+
+import (
+	"time"
+
+	"ftso-prices/internal/client"
+	"ftso-prices/internal/jsonutil"
+	"ftso-prices/internal/model"
+	"ftso-prices/internal/symbol"
+)
+
+const url = "https://api.kucoin.com/api/v1/market/allTickers"
+
+type Client struct{}
+
+func New() *Client { return &Client{} }
+
+func (c *Client) Name() string { return "kucoin" }
+
+func (c *Client) Interval() time.Duration { return time.Second }
+
+type response struct {
+	Data struct {
+		Ticker []struct {
+			Symbol   string         `json:"symbol"`
+			Last     jsonutil.Float `json:"last"`
+			VolValue jsonutil.Float `json:"volValue"`
+			Buy      jsonutil.Float `json:"buy"`
+			Sell     jsonutil.Float `json:"sell"`
+		} `json:"ticker"`
+	} `json:"data"`
+}
+
+func (c *Client) Poll(ctx *client.Context, push func(model.Ticker)) error {
+	var r response
+	if err := client.GetJSON(url, &r); err != nil {
+		return err
+	}
+	ts := client.Now()
+	for _, t := range r.Data.Ticker {
+		base, quote := symbol.GetPair(t.Symbol)
+		if !ctx.IsAsset(base) || !ctx.IsQuote(quote) {
+			continue
+		}
+		vol := t.VolValue.V()
+		push(model.Ticker{Source: model.SourceREST, Exchange: c.Name(), Base: base, Quote: quote,
+			LastPrice: t.Last.V(), Timestamp: ts, H24Volume: vol})
+		push(model.Ticker{Source: model.SourceREST, Exchange: c.Name() + "-ask", Base: base, Quote: quote,
+			LastPrice: (t.Buy.V() + t.Sell.V()) / 2, Timestamp: ts, H24Volume: vol})
+	}
+	return nil
+}

@@ -90,6 +90,12 @@ import (
 
 	"ftso-prices/internal/exchanges/bitget"
 	"ftso-prices/internal/exchanges/upbit"
+
+	"ftso-prices/internal/exchanges/aevo"
+	"ftso-prices/internal/exchanges/coinmetro"
+	"ftso-prices/internal/exchanges/dydx"
+	"ftso-prices/internal/exchanges/jupiter"
+	"ftso-prices/internal/exchanges/woox"
 )
 
 // allWs lists every websocket-based exchange implementation.
@@ -174,6 +180,11 @@ func allRest() []client.RestExchange {
 		bluebit.New(),
 		bitget.New(),
 		ourbit.New(),
+		woox.New(),
+		coinmetro.New(),
+		dydx.New(),
+		aevo.New(),
+		jupiter.New(),
 	}
 }
 
